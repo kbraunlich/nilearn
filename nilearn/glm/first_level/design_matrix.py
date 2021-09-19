@@ -187,7 +187,7 @@ def _convolve_regressors(events, hrf_model, frame_times, fir_delays=[0],
 
     hrf_model : {'spm', 'spm + derivative', 'spm + derivative + dispersion',
         'glover', 'glover + derivative', 'glover + derivative + dispersion',
-        'fir', None}
+        'fir', 'mion' ,None}
         String that specifies the hemodynamic response function
 
     frame_times : array of shape (n_scans,)
@@ -284,7 +284,7 @@ def make_first_level_design_matrix(
     hrf_model : {'glover', 'spm', 'spm + derivative', \
             'spm + derivative + dispersion', 'glover + derivative', \
             'glover + derivative + dispersion', \
-            'fir', None}, optional
+            'fir', 'mion','None}, optional
         Specifies the hemodynamic response function. Default='glover'.
 
     drift_model : {'cosine', 'polynomial', None}, optional

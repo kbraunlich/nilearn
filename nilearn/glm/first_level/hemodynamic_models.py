@@ -97,6 +97,46 @@ def spm_hrf(tr, oversampling=50, time_length=32., onset=0.):
     return _gamma_difference_hrf(tr, oversampling, time_length, onset)
 
 
+def mion_hrf(tr, oversampling=60, time_length=40., onset=0.):
+    """ Implementation of the monocrystalline iron oxide nanoparticle 
+    (MION) hrf model (Leite, et al. NeuroImage 16:283-294 (2002);
+    
+    http://dx.doi.org/10.1006/nimg.2002.1110
+    https://afni.nimh.nih.gov/pub/dist/doc/program_help/3dDeconvolve.html
+    
+    Parameters
+    ----------
+    tr : float
+        scan repeat time, in seconds
+
+    oversampling : int, optional
+        temporal oversampling factor
+
+    time_length : float, optional
+        hrf kernel length, in seconds
+
+    onset : float, optional
+        hrf onset time, in seconds
+
+    Returns
+    -------
+    hrf: array of shape(length / tr * oversampling, dtype=float)
+         hrf sampling on the oversampled time grid
+    """
+    dt = tr / oversampling
+    time_stamps = np.linspace(0, time_length, np.rint(float(time_length) / dt).astype(np.int))
+    time_stamps -= onset
+
+    hrf = np.zeros_like(time_stamps)
+
+    for i,t in enumerate(time_stamps):
+        hrf[i]  = - 16.4486 * ( - 0.184/ 1.5 * np.exp(-t / 1.5)
+                                + 0.330/ 4.5 * np.exp(-t / 4.5)
+                                + 0.670/13.5 * np.exp(-t / 13.5) )
+    hrf /= np.abs(hrf.sum())
+    return hrf
+
+
 def glover_hrf(tr, oversampling=50, time_length=32., onset=0.):
     """Implementation of the Glover hrf model
 
@@ -394,7 +434,7 @@ def _regressor_names(con_name, hrf_model, fir_delays=None):
         regressor names
 
     """
-    if hrf_model in ['glover', 'spm', None]:
+    if hrf_model in ['glover', 'spm', 'mion', None]:
         return [con_name]
     elif hrf_model in ["glover + derivative", 'spm + derivative']:
         return [con_name, con_name + "_derivative"]
@@ -432,11 +472,13 @@ def _hrf_kernel(hrf_model, tr, oversampling=50, fir_delays=None):
     """
     acceptable_hrfs = [
         'spm', 'spm + derivative', 'spm + derivative + dispersion',
-        'fir',
+        'fir', 'mion',
         'glover', 'glover + derivative', 'glover + derivative + dispersion',
         None]
     if hrf_model == 'spm':
         hkernel = [spm_hrf(tr, oversampling)]
+    elif hrf_model == 'mion':
+        hkernel = [mion_hrf(tr, oversampling)]
     elif hrf_model == 'spm + derivative':
         hkernel = [spm_hrf(tr, oversampling),
                    spm_time_derivative(tr, oversampling)]
@@ -476,7 +518,7 @@ def compute_regressor(exp_condition, hrf_model, frame_times, con_id='cond',
         (onsets, durations, amplitudes) triplet
 
     hrf_model : {'spm', 'spm + derivative', 'spm + derivative + dispersion',
-        'glover', 'glover + derivative', 'fir', None}
+        'glover', 'glover + derivative', 'fir', 'mion', None}
         Name of the hrf model to be used
 
     frame_times : array of shape (n_scans)
@@ -511,6 +553,7 @@ def compute_regressor(exp_condition, hrf_model, frame_times, con_id='cond',
      - 'spm + derivative': SPM model plus its time derivative (2 regressors)
      - 'spm + time + dispersion': idem, plus dispersion derivative
                                 (3 regressors)
+     - 'mion': this is the model used by FP Leite, et al. NeuroImage 16:283-294 (2002) 
      - 'glover': this one corresponds to the Glover hrf
      - 'glover + derivative': the Glover hrf + time derivative (2 regressors)
      - 'glover + derivative + dispersion': idem + dispersion derivative
